@@ -18,6 +18,9 @@ struct termios orig_termios;    //Declares a variable in which the terminal attr
 /*** terminal ***/
 
 void die(const char *s) {   //Takes the value or errno and sets it as a constant at "s"
+    write(STDOUT_FILENO, "\x1b[2J", 4);
+    write(STDOUT_FILENO, "\x1b[H", 3);
+
     perror(s);  //Prints the error message
     exit(1);    //Exits as failed (because there's an error)
 }
@@ -54,8 +57,20 @@ char editorReadKey() {
 
 /*** output ***/
 
+void editorDrawRows() {
+    int y;
+    for (y = 0; y < 24; y++) {
+        write(STDOUT_FILENO, "~\r\n", 3);
+    }
+}
+
 void editorRefreshScreen() {
     write(STDOUT_FILENO, "\x1b[2J", 4);  //Clears the screen
+    write(STDOUT_FILENO, "\x1b[H", 3);   //Positions the cursor in the top left
+
+    editorDrawRows();
+
+    write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
 /*** input ***/
@@ -65,6 +80,8 @@ void editorProcessKeypress () {
 
     switch (c) {
         case CTRL_KEY('q'):
+            write(STDOUT_FILENO, "\x1b[2J", 4);
+            write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);        //Exits if the input is CTRL+q
             break;
     }
