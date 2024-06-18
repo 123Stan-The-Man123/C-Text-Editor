@@ -7,6 +7,10 @@
 #include <termios.h>
 #include <unistd.h>
 
+/*** defines ***/
+
+#define CTRL_KEY(k) ((k) & 0x1f) //Here, we define a macro. It takes an input 'k' and bitwise-ANDs it. If both bits are 1, it is set to 1. If not, it is set to 0.
+
 /*** data ***/
 
 struct termios orig_termios;    //Declares a variable in which the terminal attributes will be stored
@@ -51,7 +55,7 @@ int main() {
         } else {    //Else print both character and ASCII value
             printf("%d ('%c')\r\n", c, c);
         }
-        if (c == 'q') break;    //Breaks the infinite while loop if the user input is 'q'
+        if (c == CTRL_KEY('q')) break;    //Breaks the infinite while loop if the user input is 'q'
     }
 
     return 0;   //Successful return
