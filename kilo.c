@@ -42,20 +42,42 @@ void enableRawMode() {
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");   //Now we set the terminal attributes with our structure "raw". TCSAFLUSH discards any queued input and makes changes after all queued output has been written.
 }
 
+char editorReadKey() {
+    int nread;
+    char c;
+    while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {      //Proceeds while the value of the 1 byte read is != 1
+        if (nread == -1 && errno != EAGAIN) die("read");    //Return an error if nread == -1 and errno != EAGAIN
+    }
+    return c;
+}
+
+
+/*** output ***/
+
+void editorRefreshScreen() {
+    write(STDOUT_FILENO, "\x1b[2J", 4);  //Clears the screen
+}
+
+/*** input ***/
+
+void editorProcessKeypress () {
+    char c = editorReadKey();   //Gets user input from editorReadKey()
+
+    switch (c) {
+        case CTRL_KEY('q'):
+            exit(0);        //Exits if the input is CTRL+q
+            break;
+    }
+}
+
 /*** init ***/
 
 int main() {
     enableRawMode();    //Enables raw mode
 
     while(1) {  //Infinite loop for the text editor
-        char c = '\0';  //This is where the users input will be stored temporarily
-        if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die ("read");  //Reads the users input. Requires the amount of bytes (here 1).
-        if (iscntrl(c)) {   //If the input is a control code then only print the ASCII value
-            printf("%d\r\n", c);
-        } else {    //Else print both character and ASCII value
-            printf("%d ('%c')\r\n", c, c);
-        }
-        if (c == CTRL_KEY('q')) break;    //Breaks the infinite while loop if the user input is 'q'
+        editorRefreshScreen();
+        editorProcessKeypress();
     }
 
     return 0;   //Successful return
