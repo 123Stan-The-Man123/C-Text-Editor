@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -13,7 +14,13 @@
 
 /*** data ***/
 
-struct termios orig_termios;    //Declares a variable in which the terminal attributes will be stored
+struct editorConfig {
+    int screenrows;     //Number of terminal rows
+    int screencols;     //Number of terminal colours
+    struct termios orig_termios;    //Declares a variable in which the terminal attributes will be stored
+};
+
+struct editorConfig E;
 
 /*** terminal ***/
 
@@ -26,15 +33,15 @@ void die(const char *s) {   //Takes the value or errno and sets it as a constant
 }
 
 void disableRawMode() {
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)  //Sets terminal attributes to their original state using tcsetattr
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)  //Sets terminal attributes to their original state using tcsetattr
         die("tcsetattr");
 }
 
 void enableRawMode() {
-    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr"); //Gets terminal attributes and stores them in orig_termios
+    if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("tcgetattr"); //Gets terminal attributes and stores them in orig_termios
     atexit(disableRawMode); //Runs the disableRawMode function when the program exits from main
 
-    struct termios raw = orig_termios; //Separate structure which we will modify
+    struct termios raw = E.orig_termios; //Separate structure which we will modify
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);   //Disable some input flags
     raw.c_oflag &= ~(OPOST);    //Disable some output flags
     raw.c_cflag |= (CS8);
@@ -54,12 +61,23 @@ char editorReadKey() {
     return c;
 }
 
+int getWindowSize(int *rows, int *cols) {
+    struct winsize ws;  //Structure to store terminal size
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {    //Return error if either of these conditions is true
+        return -1;
+    } else {
+        *cols = ws.ws_col;  //Dereference operator to set the memory address of 'cols' to 'ws.ws_col
+        *rows = ws.ws_row;  //Same as above but for rows
+        return 0;
+    }
+}
 
 /*** output ***/
 
 void editorDrawRows() {
     int y;
-    for (y = 0; y < 24; y++) {
+    for (y = 0; y < E.screenrows; y++) {    //Prints a tilda on every row
         write(STDOUT_FILENO, "~\r\n", 3);
     }
 }
@@ -89,8 +107,13 @@ void editorProcessKeypress () {
 
 /*** init ***/
 
+void initEditor() {
+    if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");    //Returns an error if it cannot fetch the window size
+}
+
 int main() {
     enableRawMode();    //Enables raw mode
+    initEditor();
 
     while(1) {  //Infinite loop for the text editor
         editorRefreshScreen();
